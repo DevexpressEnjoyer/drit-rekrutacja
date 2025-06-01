@@ -10,6 +10,7 @@ using Soneta.Types;
 using Rekrutacja.Workers.Template;
 using Soneta.Handel;
 using static Rekrutacja.Workers.Template.TemplateWorker.TemplateWorkerParametry;
+using System.Diagnostics;
 
 //Rejetracja Workera - Pierwszy TypeOf określa jakiego typu ma być wyświetlany Worker, Drugi parametr wskazuje na jakim Typie obiektów będzie wyświetlany Worker
 [assembly: Worker(typeof(TemplateWorker), typeof(Pracownicy))]
@@ -29,10 +30,10 @@ namespace Rekrutacja.Workers.Template
             }
 
             [Caption("A")]
-            public double A { get; set; }
+            public string A { get; set; }
 
             [Caption("B")]
-            public double B { get; set; }
+            public string B { get; set; }
 
             [Caption("Data obliczeń")]
             public Date DataObliczen { get; set; }
@@ -61,9 +62,15 @@ namespace Rekrutacja.Workers.Template
            Target = ActionTarget.ToolbarWithText)]
         public void WykonajAkcje()
         {
-            Waliduj();
             //Włączenie Debug, aby działał należy wygenerować DLL w trybie DEBUG
-            var wynik = WykonajObliczenia();
+            int X = KonwertujStringNaInt(this.Parametry.A);
+            int Y = 0;
+
+            if(this.Parametry.figura == Figura.Prostokąt || this.Parametry.figura == Figura.Trojkąt) Y = KonwertujStringNaInt(this.Parametry.B);
+
+            Waliduj(X, Y);
+
+            var wynik = WykonajObliczenia(X, Y);
             DebuggerSession.MarkLineAsBreakPoint();
 
             //Pobieranie danych z Contextu
@@ -94,26 +101,26 @@ namespace Rekrutacja.Workers.Template
             }
         }
 
-        private double WykonajObliczenia()
+        private double WykonajObliczenia(int A, int B)
         {
             double wynik;
 
             switch (this.Parametry.figura)
             {
                 case Figura.Kwadrat:
-                    wynik = this.Parametry.A * this.Parametry.A;
+                    wynik = A * A;
                     break;
 
                 case Figura.Prostokąt:
-                    wynik = this.Parametry.A * this.Parametry.B;
+                    wynik = A * B;
                     break;
 
                 case Figura.Trojkąt:
-                    wynik = (this.Parametry.A * this.Parametry.B) / 2;
+                    wynik = (A * B) / 2;
                     break;
 
                 case Figura.Koło:
-                    wynik = Math.PI * this.Parametry.A * this.Parametry.A;
+                    wynik = Math.PI * A * A;
                     break;
 
                 default:
@@ -123,16 +130,45 @@ namespace Rekrutacja.Workers.Template
             return (int)Math.Round(wynik, MidpointRounding.AwayFromZero);
         }
 
-        private void Waliduj()
+        private void Waliduj(int A, int B)
         {
-            if (this.Parametry.A <= 0)
+            if (A <= 0)
                 throw new Exception("Wartość A musi być dodatnia.");
 
             if ((this.Parametry.figura == Figura.Prostokąt || this.Parametry.figura == Figura.Trojkąt)
-                && this.Parametry.B <= 0)
+                && B <= 0)
             {
                 throw new Exception("Wartość B musi być dodatnia.");
             }
         }
+
+        private int KonwertujStringNaInt(string text)
+        {
+            if (String.IsNullOrEmpty(text)) throw new Exception("Nie podano wartości.");
+
+            int znak = text[0] == '-' ? -1 : 1;
+
+            int wynik = 0;
+            int potega = 1;
+            int cyfra = 0;
+
+            for(int i = text.Length - 1; i >= 0; i--, potega *= 10)
+            {
+                if (i == 0 && znak == -1) continue;
+                if (!JestCyfra(text[i])) throw new Exception("Znaleziono nieprawidłowy znak w zapisie liczby.");
+
+                cyfra = text[i] - '0';
+                wynik += cyfra * potega;
+            }
+
+            if(znak == -1)
+            {
+                return wynik * znak;
+            }
+
+            return wynik;
+        }
+
+        private Func<char, bool> JestCyfra = c => (c >= '0' && c <= '9');    
     }
 }
