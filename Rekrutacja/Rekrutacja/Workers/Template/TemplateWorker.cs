@@ -9,6 +9,7 @@ using Soneta.KadryPlace;
 using Soneta.Types;
 using Rekrutacja.Workers.Template;
 using Soneta.Handel;
+using static Rekrutacja.Workers.Template.TemplateWorker.TemplateWorkerParametry;
 
 //Rejetracja Workera - Pierwszy TypeOf określa jakiego typu ma być wyświetlany Worker, Drugi parametr wskazuje na jakim Typie obiektów będzie wyświetlany Worker
 [assembly: Worker(typeof(TemplateWorker), typeof(Pracownicy))]
@@ -19,6 +20,14 @@ namespace Rekrutacja.Workers.Template
         //Aby parametry działały prawidłowo dziedziczymy po klasie ContextBase
         public class TemplateWorkerParametry : ContextBase
         {
+            public enum Figura
+            {
+                Kwadrat,
+                Prostokąt,
+                Trojkąt,
+                Koło
+            }
+
             [Caption("A")]
             public double A { get; set; }
 
@@ -28,8 +37,9 @@ namespace Rekrutacja.Workers.Template
             [Caption("Data obliczeń")]
             public Date DataObliczen { get; set; }
 
-            [Caption("Operacja")]
-            public char Operacja { get; set; }
+            [Caption("Figura")]
+            public Figura figura{ get; set; }
+
             public TemplateWorkerParametry(Context context) : base(context)
             {
                 this.DataObliczen = Date.Today;
@@ -51,6 +61,7 @@ namespace Rekrutacja.Workers.Template
            Target = ActionTarget.ToolbarWithText)]
         public void WykonajAkcje()
         {
+            Waliduj();
             //Włączenie Debug, aby działał należy wygenerować DLL w trybie DEBUG
             var wynik = WykonajObliczenia();
             DebuggerSession.MarkLineAsBreakPoint();
@@ -85,19 +96,42 @@ namespace Rekrutacja.Workers.Template
 
         private double WykonajObliczenia()
         {
-            switch (this.Parametry.Operacja)
+            double wynik;
+
+            switch (this.Parametry.figura)
             {
-                case '+':
-                    return this.Parametry.A + this.Parametry.B;
-                case '-':
-                    return this.Parametry.A - this.Parametry.B;
-                case '*':
-                    return this.Parametry.A * this.Parametry.B;
-                case '/':
-                    if (this.Parametry.B == 0.0) throw new Exception("Parametr B nie został uzupełniony lub jest równy 0.");
-                    return this.Parametry.A / this.Parametry.B;
+                case Figura.Kwadrat:
+                    wynik = this.Parametry.A * this.Parametry.A;
+                    break;
+
+                case Figura.Prostokąt:
+                    wynik = this.Parametry.A * this.Parametry.B;
+                    break;
+
+                case Figura.Trojkąt:
+                    wynik = (this.Parametry.A * this.Parametry.B) / 2;
+                    break;
+
+                case Figura.Koło:
+                    wynik = Math.PI * this.Parametry.A * this.Parametry.A;
+                    break;
+
                 default:
-                    throw new Exception("Nieznana operacja.");
+                    throw new Exception("Nieznana figura.");
+            }
+
+            return (int)Math.Round(wynik, MidpointRounding.AwayFromZero);
+        }
+
+        private void Waliduj()
+        {
+            if (this.Parametry.A <= 0)
+                throw new Exception("Wartość A musi być dodatnia.");
+
+            if ((this.Parametry.figura == Figura.Prostokąt || this.Parametry.figura == Figura.Trojkąt)
+                && this.Parametry.B <= 0)
+            {
+                throw new Exception("Wartość B musi być dodatnia.");
             }
         }
     }
