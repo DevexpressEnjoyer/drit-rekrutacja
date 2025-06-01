@@ -8,6 +8,7 @@ using Soneta.Kadry;
 using Soneta.KadryPlace;
 using Soneta.Types;
 using Rekrutacja.Workers.Template;
+using Soneta.Handel;
 
 //Rejetracja Workera - Pierwszy TypeOf określa jakiego typu ma być wyświetlany Worker, Drugi parametr wskazuje na jakim Typie obiektów będzie wyświetlany Worker
 [assembly: Worker(typeof(TemplateWorker), typeof(Pracownicy))]
@@ -18,8 +19,17 @@ namespace Rekrutacja.Workers.Template
         //Aby parametry działały prawidłowo dziedziczymy po klasie ContextBase
         public class TemplateWorkerParametry : ContextBase
         {
+            [Caption("A")]
+            public double A { get; set; }
+
+            [Caption("B")]
+            public double B { get; set; }
+
             [Caption("Data obliczeń")]
             public Date DataObliczen { get; set; }
+
+            [Caption("Operacja")]
+            public char Operacja { get; set; }
             public TemplateWorkerParametry(Context context) : base(context)
             {
                 this.DataObliczen = Date.Today;
@@ -42,12 +52,14 @@ namespace Rekrutacja.Workers.Template
         public void WykonajAkcje()
         {
             //Włączenie Debug, aby działał należy wygenerować DLL w trybie DEBUG
+            var wynik = WykonajObliczenia();
             DebuggerSession.MarkLineAsBreakPoint();
+
             //Pobieranie danych z Contextu
-            Pracownik pracownik = null;
-            if (this.Cx.Contains(typeof(Pracownik)))
+            Pracownik[] pracownicy = null;
+            if (this.Cx.Contains(typeof(Pracownik[])))
             {
-                pracownik = (Pracownik)this.Cx[typeof(Pracownik)];
+                pracownicy = (Pracownik[])this.Cx[typeof(Pracownik[])];
             }
 
             //Modyfikacja danych
@@ -57,15 +69,35 @@ namespace Rekrutacja.Workers.Template
                 //Otwieramy Transaction aby można było edytować obiekt z sesji
                 using (ITransaction trans = nowaSesja.Logout(true))
                 {
-                    //Pobieramy obiekt z Nowo utworzonej sesji
-                    var pracownikZSesja = nowaSesja.Get(pracownik);
-                    //Features - są to pola rozszerzające obiekty w bazie danych, dzięki czemu nie jestesmy ogarniczeni to kolumn jakie zostały utworzone przez producenta
-                    pracownikZSesja.Features["DataObliczen"] = this.Parametry.DataObliczen;
-                    //Zatwierdzamy zmiany wykonane w sesji
+                    foreach (var pracownik in pracownicy)
+                    {
+                        var pracownikZSesja = nowaSesja.Get(pracownik);
+                        pracownikZSesja.Features["DataObliczen"] = this.Parametry.DataObliczen;
+                        pracownikZSesja.Features["Wynik"] = wynik;
+                    }
+
                     trans.CommitUI();
                 }
                 //Zapisujemy zmiany
                 nowaSesja.Save();
+            }
+        }
+
+        private double WykonajObliczenia()
+        {
+            switch (this.Parametry.Operacja)
+            {
+                case '+':
+                    return this.Parametry.A + this.Parametry.B;
+                case '-':
+                    return this.Parametry.A - this.Parametry.B;
+                case '*':
+                    return this.Parametry.A * this.Parametry.B;
+                case '/':
+                    if (this.Parametry.B == 0.0) throw new Exception("Parametr B nie został uzupełniony lub jest równy 0.");
+                    return this.Parametry.A / this.Parametry.B;
+                default:
+                    throw new Exception("Nieznana operacja.");
             }
         }
     }
